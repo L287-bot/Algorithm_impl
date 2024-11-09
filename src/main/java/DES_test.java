@@ -131,8 +131,8 @@ public class DES_test {
      */
     private static  final int LOOP_NUM=16;
     private String[] keys=new String[LOOP_NUM];
-    private String[] pContent;
-    private String[] cContent;
+//    private String[] pContent;
+//    private String[] cContent;
     private int origin_length;
     /**
      * 16个子密钥
@@ -141,30 +141,43 @@ public class DES_test {
     private String content;
     private int p_origin_length;
 
+
     public DES_test(String key,String content)
     {
         this.content=content;
+        //得到明文长度字节数，一字节为8bit
         p_origin_length=content.getBytes().length;
+        //产生子密钥
         generateKeys(key);
     }
+
     /**
-     * 拆分分组
+     * 将输入的字节数组分为8字节(64bit)的块进行处理，支持对数据的加密和解密。
+     * @param p 输入的字节数组，表示需要处理的数据（明文或密文）。
+     * @param flag 指示操作类型，0 表示解密，1 表示加密。
+     * @return
      */
     public  byte[] deal(byte[] p,int flag)
     {
         origin_length=p.length;
+        //组数
         int g_num;
+        //需要填充数
         int r_num;
+        //8个字节一组，即64bit
         g_num=origin_length/8;
+        //计算需要填充数，只有小于等于的情况
         r_num=8-(origin_length-g_num*8);//8不填充
         byte[] p_padding;
         /**
          * 填充
          */
         if (r_num<8)
-        {
+        {   //需要填充创建新的数组
             p_padding=new byte[origin_length+r_num];
+            //复制明文数组byte[] p 到填充数组 p_padding
             System.arraycopy(p,0,p_padding,0,origin_length);
+            //末尾进行填充
             for (int i=0;i<r_num;i++)
             {
                 p_padding[origin_length+i]=(byte) r_num;
@@ -172,19 +185,24 @@ public class DES_test {
         }else {
             p_padding=p;
         }
+        //填充好的数组，再重新分组
         g_num=p_padding.length/8;
         byte[] f_p=new byte[8];
+        //存储加密解密结果的数组 result_data。
         byte[] result_data=new byte[p_padding.length];
         for (int i=0;i<g_num;i++)
-        {
+        {   //填充好的数组每8个字节分配到数组f_p 中进行加密解密处理
             System.arraycopy(p_padding,i*8,f_p,0,8);
+            //对每个8字节组进行处理，调用 descryUnit() 方法进行加密或解密，结果存入 result_data。
             System.arraycopy(descryUnit(f_p,sub_key,flag),0,result_data,i*8,8);
 
         }
         if (flag==0)
         {
             //解密
+            //原始明文长度的数组
             byte[] p_result_data=new byte[p_origin_length];
+            //解密结束只复制结果数组result_data达到p_origin_length的长度，即去除填充的数组
             System.arraycopy(result_data,0,p_result_data,0,p_origin_length);
             return p_result_data;
         }
@@ -193,30 +211,37 @@ public class DES_test {
     }
 
     /**
-     * 加密
+     * 对一个8字节的输入块进行加密或解密操作。
+     * @param p 8字节的输入块（明文或密文）。
+     * @param k 16个子密钥的二维数组，每个子密钥是48位。
+     * @param flag 操作标志，0表示解密，1表示加密。
+     * @return
+     * descryUnit(f_p,sub_key,flag)
      */
     public byte[] descryUnit(byte[] p,int k[][],int flag)
-    {
+    {   //8字节的字节数组（p）转换为一个64位的二进制表示，并将每一位存储在一个整数数组（p_bit）
         int [] p_bit=new int[64];
+        // 创建一个StringBuilder用于构建二进制字符串
         StringBuilder stringBuilder=new StringBuilder();
         for (int i=0;i<8;i++)
-        {
+        {  // 将p中每个字节转换为无符号的二进制字符串
             String p_b=Integer.toBinaryString(p[i]&0xff);
             while (p_b.length()%8!=0)
-            {
+            {  // 确保每个字节的二进制字符串长度为8位，不足则在前面补零
                 p_b="0"+p_b;
             }
+            // 将8位的二进制字符串追加到StringBuilder中
             stringBuilder.append(p_b);
         }
         String p_str=stringBuilder.toString();
         for (int i=0;i<64;i++)
-        {
+        {   // 取出字符串中的每一位
             int p_t=Integer.valueOf(p_str.charAt(i));
             if (p_t==48){
-                p_t=0;
+                p_t=0;  // 如果是字符'0'（ASCII值48），则设置为0
             }else if (p_t==49)
             {
-                p_t=1;
+                p_t=1;// 如果是字符'1'（ASCII值49），则设置为1
             }else {
                 System.out.println("To bit error!");
             }
@@ -228,14 +253,14 @@ public class DES_test {
          */
         int [] p_IP=new int[64];
         for (int i=0;i<64;i++)
-        {
+        {   //举例，第58位数放在第一位，即p[0]换成p[58-1]
             p_IP[i]=p_bit[IP[i]-1];
         }
         if (flag==1)
         {
             for (int i=0;i<16;i++)
             {
-
+                //进行IP置换后的数组进行16次 分两半，交换，执行轮函数
                 L(p_IP,i,flag,k[i]);
             }
 
@@ -247,15 +272,17 @@ public class DES_test {
                 L(p_IP,i,flag,k[i]);
             }
         }
-
+        //逆置换
         int [] c=new int[64];
         for (int i=0;i<IP_1.length;i++)
         {
             c[i]=p_IP[IP_1[i]-1];
         }
+        //创建一个长度为8的字节数组，因为64位数据可以分为8个字节
+        //对于每个字节i，通过位移和加法操作将8个相应的位组合成一个字节。具体来说，c[8 * i]是最高位，依次向右合并直到最低位c[8 * i + 7]。
         byte [] c_byte=new byte[8];
         for (int i=0;i<8;i++)
-        {
+        {   //对于每个字节i，通过位移和加法操作将8个相应的位组合成一个字节。具体来说，c[8 * i]是最高位，依次向右合并直到最低位c[8 * i + 7]。
             c_byte[i]=(byte) ((c[8*i]<<7)+(c[8*i+1]<<6)+(c[8*i+2]<<5)+(c[8*i+3]<<4)+(c[8*i+4]<<3)+(c[8*i+5]<<2)+(c[8*i+6]<<1)+(c[8*i+7]));
 
         }
@@ -264,6 +291,13 @@ public class DES_test {
 
     }
 
+    /**
+     *
+     * @param M 传入的64位数据数组（经过初始置换或前一轮处理后的结果）。
+     * @param times 当前的轮数（从0到15）。
+     * @param flag 处理模式，1表示加密，0表示解密。
+     * @param keyarray 当前轮次使用的子密钥。
+     */
     public void L(int [] M ,int times,int flag,int[] keyarray)
     {
         int[] L0=new int[32];
@@ -271,20 +305,24 @@ public class DES_test {
         int[] L1=new int[32];
         int[] R1=new int[32];
         int[] f=new int[32];
+        //对半分成两组L0 R0
         System.arraycopy(M,0,L0,0,32);
         System.arraycopy(M,32,R0,0,32);
+        //将 R0 赋值给 L1，这将在下一轮中用作新的左半部分。
         L1=R0;
+        //调用轮函数 fFunction，传入当前右半部分 R0 和当前的子密钥 keyarray，计算出一个 32 位的结果 f。
         f=fFunction(R0,keyarray);
-
+       //对 L0 和 f 进行异或运算，生成新的右半部分 R1。
         for (int j=0;j<32;j++)
         {
             R1[j]=L0[j]^f[j];
             if (((flag==0)&&(times==0)||((flag==1)&&(times==15))))
-            {
+            {   //如果是最后一轮左右要交换
                 M[j]=R1[j];
                 M[j+32]=L1[j];
             }
             else {
+                //左边32位L1，右边32位R1，拼会M[64]，继续再前面32后面32平均分成两组
                 M[j]=L1[j];
                 M[j+32]=R1[j];
             }
@@ -294,13 +332,14 @@ public class DES_test {
 
     /**
      * 轮函数
-     * @param r_content
-     * @param key
+     * @param r_content 当前的右半部分（32 位数组）。
+     * @param key 当前轮次的子密钥（48 位数组）。
      * @return
      */
     public int[] fFunction(int [] r_content,int [] key)
-    {
-        int [ ] result=new int[32];
+    {   //最终返回的 32 位结果数组。
+        int [] result=new int[32];
+        //48 位的扩展数据和密钥异或结果。
         int[] e_k=new int[48];
         /**拓展+异或运算*/
         for (int i=0;i<E.length;i++)
@@ -318,7 +357,7 @@ public class DES_test {
             String str=Integer.toBinaryString(S_BOXES[i][r][c]);
             while (str.length()<4)
             {
-                str="0"+str;
+                str="0"+str; // 确保长度为 4 位
             }
 
             for (int j=0;j<4;j++)
@@ -333,7 +372,7 @@ public class DES_test {
                 }else {
                     System.out.println("To bit error!");
                 }
-                s_after[4*i+j]=p;
+                s_after[4*i+j]=p; // 保存 S-盒输出
             }
         }
         /**S盒替换结束**/
@@ -352,11 +391,15 @@ public class DES_test {
      * @param key
      */
     public void generateKeys(String key) {
+//        如果输入的密钥长度小于 8，则重复附加密钥本身直到达到 8 个字符。
         while (key.length() < 8) {
             key = key + key;
         }
+        //只保留前 8 个字符，确保密钥长度为 8 字节（64 位）。
         key = key.substring(0, 8);
         byte[] keys = key.getBytes();
+        //初始化一个 64 位的数组 k_bit。
+        //将每个字节转换为其 8 位二进制表示，填充至 8 位长，并存入 k_bit 数组。
         int[] k_bit = new int[64];
         for (int i = 0; i < 8; i++) {
             String k_str = Integer.toBinaryString(keys[i] & 0xff);
@@ -377,11 +420,14 @@ public class DES_test {
                 k_bit[i * 8 + j] = p;
             }
         }
-
+        //通过选择置换表 PC_1，从 64 位的 k_bit 中提取出 56 位，存入 k_new_bit。PC-1 表定义了哪些位会被保留，哪些位会被丢弃。
         int[] k_new_bit = new int[56];
         for (int i = 0; i < PC_1.length; i++) {
             k_new_bit[i] = k_bit[PC_1[i] - 1];
         }
+
+
+
         /*****************/
         int[] c0 = new int[28];
         int[] d0 = new int[28];
@@ -391,11 +437,13 @@ public class DES_test {
             int[] c1 = new int[28];
             int[] d1 = new int[28];
             if (LFT[i] == 1) {
+//                如果 LFT[i] 是 1，则 c0 和 d0 各左移 1 位。
                 System.arraycopy(c0, 1, c1, 0, 27);
                 c1[27] = c0[0];
                 System.arraycopy(d0, 1, d1, 0, 27);
                 d1[27] = d0[0];
             } else if (LFT[i] == 2) {
+                //如果 LFT[i] 是 2，则 c0 和 d0 各左移 2 位。
                 System.arraycopy(c0, 2, c1, 0, 26);
                 c1[26] = c0[0];
                 c1[27] = c0[1];
@@ -405,6 +453,9 @@ public class DES_test {
             } else {
                 System.out.println("LFT Error!");
             }
+
+//            将 c1 和 d1 组合成 56 位的临时数组 tmp。
+            //根据置换表 PC_2 从 tmp 中提取出 48 位，并将其存入 sub_key 数组的对应子密钥中。
             int[] tmp = new int[56];
             System.arraycopy(c1, 0, tmp, 0, 28);
             System.arraycopy(d1, 0, tmp, 28, 28);
