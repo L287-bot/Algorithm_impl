@@ -141,19 +141,7 @@ public class RSA_Test {
     }
 
     public static void main(String[] args) {
-//        try {
-//            File file=new File("prime.dat");
-//            file.createNewFile();
-//            FileWriter writer=new FileWriter(file);
-//            for (int i=2;i<65535;i++)
-//
-//                if (prime(i))
-//                    writer.write(i+" ");
-//                writer.flush();
-//                writer.close();
-//    } catch (IOException e) {
-//        throw new RuntimeException(e);
-//    }
+
 
         int[]p={0};
         int[]q={0};
